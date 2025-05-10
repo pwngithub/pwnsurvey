@@ -10,9 +10,9 @@ if uploaded_file:
     df = pd.read_excel(uploaded_file, sheet_name=0)
 
     df.columns = df.columns.str.strip()
-    df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
-    df['Month'] = df['Date'].dt.strftime('%Y-%m')
-    df['Day'] = df['Date'].dt.date
+    df['Submission Date'] = pd.to_datetime(df['Submission Date'], errors='coerce')
+    df['Month'] = df['Submission Date'].dt.strftime('%Y-%m')
+    df['Day'] = df['Submission Date'].dt.date
     df['Tech'] = df['Tech'].astype(str)
 
     # Sidebar filters
