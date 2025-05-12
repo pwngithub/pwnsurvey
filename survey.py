@@ -10,16 +10,28 @@ st.title("FTTH Survey Summary by Tech")
 uploaded_file = st.file_uploader("Upload your Excel file", type=["xlsx", "xlsm"])
 if uploaded_file:
     df = pd.read_excel(uploaded_file, sheet_name=0)
-
     df.columns = df.columns.str.strip()
-    df['Submission Date'] = pd.to_datetime(df['Submission Date'], errors='coerce')
-    df['Month'] = df['Submission Date'].dt.strftime('%Y-%m')
+
+    # Use 'Submission Date' if it exists and has valid entries, otherwise use 'Date'
+    if 'Submission Date' in df.columns and df['Submission Date'].notna().sum() > 0:
+        df['Parsed Date'] = pd.to_datetime(df['Submission Date'], errors='coerce')
+    else:
+        df['Parsed Date'] = pd.to_datetime(df['Date'], errors='coerce')
+
+    # Extract month and tech
+    df['Month'] = df['Parsed Date'].dt.strftime('%Y-%m')
     df['Tech'] = df['Tech'].astype(str)
 
-    # Sidebar filters
+    # Drop rows with no Parsed Date
+    df = df[df['Parsed Date'].notna()]
+
+    # Sidebar filters only after parsing
     st.sidebar.header("Filters")
-    tech_filter = st.sidebar.multiselect("Select Tech(s)", df['Tech'].dropna().unique(), default=df['Tech'].dropna().unique())
-    month_filter = st.sidebar.multiselect("Select Month(s)", df['Month'].dropna().unique(), default=df['Month'].dropna().unique())
+    unique_techs = df['Tech'].dropna().unique()
+    unique_months = df['Month'].dropna().unique()
+
+    tech_filter = st.sidebar.multiselect("Select Tech(s)", options=sorted(unique_techs), default=sorted(unique_techs))
+    month_filter = st.sidebar.multiselect("Select Month(s)", options=sorted(unique_months), default=sorted(unique_months))
 
     # Apply filters
     filtered_df = df[
@@ -33,11 +45,14 @@ if uploaded_file:
 
     st.subheader("Monthly Survey Totals by Tech (Chart)")
     monthly_chart = filtered_df.groupby(['Month', 'Tech']).size().reset_index(name='Survey Count')
-    fig, ax = plt.subplots(figsize=(12, 6))
-    sns.barplot(data=monthly_chart, x='Month', y='Survey Count', hue='Tech', ax=ax)
-    ax.set_title("Surveys per Tech by Month")
-    ax.set_xlabel("Month")
-    ax.set_ylabel("Survey Count")
-    ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='right')
-    fig.tight_layout()
-    st.pyplot(fig)
+    if not monthly_chart.empty:
+        fig, ax = plt.subplots(figsize=(12, 6))
+        sns.barplot(data=monthly_chart, x='Month', y='Survey Count', hue='Tech', ax=ax)
+        ax.set_title("Surveys per Tech by Month")
+        ax.set_xlabel("Month")
+        ax.set_ylabel("Survey Count")
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='right')
+        fig.tight_layout()
+        st.pyplot(fig)
+    else:
+        st.warning("No data available for the selected filters.")
