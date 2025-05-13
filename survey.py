@@ -3,6 +3,7 @@ import streamlit as st
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+from dateutil import parser
 
 st.set_page_config(layout="wide")
 st.title("FTTH Survey Summary by Tech")
@@ -12,20 +13,21 @@ if uploaded_file:
     df = pd.read_excel(uploaded_file, sheet_name=0)
     df.columns = df.columns.str.strip()
 
-    # Use 'Submission Date' if it exists and has valid entries, otherwise use 'Date'
-    if 'Submission Date' in df.columns and df['Submission Date'].notna().sum() > 0:
-        df['Parsed Date'] = pd.to_datetime(df['Submission Date'], errors='coerce')
+    # Aggressively parse Submission Date using dateutil parser
+    if 'Submission Date' in df.columns:
+        df['Parsed Date'] = df['Submission Date'].apply(
+            lambda x: parser.parse(str(x), fuzzy=True) if pd.notnull(x) else pd.NaT
+        )
     else:
         df['Parsed Date'] = pd.to_datetime(df['Date'], errors='coerce')
 
-    # Extract month and tech
     df['Month'] = df['Parsed Date'].dt.strftime('%Y-%m')
     df['Tech'] = df['Tech'].astype(str)
 
-    # Drop rows with no Parsed Date
+    # Drop rows with no valid date
     df = df[df['Parsed Date'].notna()]
 
-    # Sidebar filters only after parsing
+    # Sidebar filters
     st.sidebar.header("Filters")
     unique_techs = df['Tech'].dropna().unique()
     unique_months = df['Month'].dropna().unique()
