@@ -4,16 +4,26 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 from dateutil import parser
+import os
 
 st.set_page_config(layout="wide")
 st.title("FTTH Survey Summary by Tech")
 
+SHARED_DIR = "shared_uploads"
+os.makedirs(SHARED_DIR, exist_ok=True)
+
 uploaded_file = st.file_uploader("Upload your Excel file", type=["xlsx", "xlsm"])
 if uploaded_file:
+    # Save uploaded file to shared directory
+    save_path = os.path.join(SHARED_DIR, uploaded_file.name)
+    with open(save_path, "wb") as f:
+        f.write(uploaded_file.getbuffer())
+    st.success(f"File saved to {save_path} for shared use.")
+
     df = pd.read_excel(uploaded_file, sheet_name=0)
     df.columns = df.columns.str.strip()
 
-    # Aggressively parse Submission Date using dateutil parser
+    # Parse Submission Date
     if 'Submission Date' in df.columns:
         df['Parsed Date'] = df['Submission Date'].apply(
             lambda x: parser.parse(str(x), fuzzy=True) if pd.notnull(x) else pd.NaT
@@ -23,17 +33,12 @@ if uploaded_file:
 
     df['Month'] = df['Parsed Date'].dt.strftime('%Y-%m')
     df['Tech'] = df['Tech'].astype(str)
-
-    # Drop rows with no valid date
     df = df[df['Parsed Date'].notna()]
 
     # Sidebar filters
     st.sidebar.header("Filters")
-    unique_techs = df['Tech'].dropna().unique()
-    unique_months = df['Month'].dropna().unique()
-
-    tech_filter = st.sidebar.multiselect("Select Tech(s)", options=sorted(unique_techs), default=sorted(unique_techs))
-    month_filter = st.sidebar.multiselect("Select Month(s)", options=sorted(unique_months), default=sorted(unique_months))
+    tech_filter = st.sidebar.multiselect("Select Tech(s)", options=sorted(df['Tech'].unique()), default=sorted(df['Tech'].unique()))
+    month_filter = st.sidebar.multiselect("Select Month(s)", options=sorted(df['Month'].unique()), default=sorted(df['Month'].unique()))
 
     # Apply filters
     filtered_df = df[
