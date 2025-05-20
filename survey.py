@@ -12,15 +12,22 @@ st.title("FTTH Survey Summary by Tech")
 SHARED_DIR = "shared_uploads"
 os.makedirs(SHARED_DIR, exist_ok=True)
 
+# Upload and save file
 uploaded_file = st.file_uploader("Upload your Excel file", type=["xlsx", "xlsm"])
 if uploaded_file:
-    # Save uploaded file to shared directory
     save_path = os.path.join(SHARED_DIR, uploaded_file.name)
     with open(save_path, "wb") as f:
         f.write(uploaded_file.getbuffer())
     st.success(f"File saved to {save_path} for shared use.")
 
-    df = pd.read_excel(uploaded_file, sheet_name=0)
+# List previously uploaded files
+shared_files = sorted([f for f in os.listdir(SHARED_DIR) if f.endswith((".xlsx", ".xlsm"))])
+selected_file = st.selectbox("Or choose a previously uploaded file", shared_files if shared_files else ["No files yet"])
+
+# Load selected file
+if selected_file and selected_file != "No files yet":
+    filepath = os.path.join(SHARED_DIR, selected_file)
+    df = pd.read_excel(filepath, sheet_name=0)
     df.columns = df.columns.str.strip()
 
     # Parse Submission Date
@@ -35,12 +42,11 @@ if uploaded_file:
     df['Tech'] = df['Tech'].astype(str)
     df = df[df['Parsed Date'].notna()]
 
-    # Sidebar filters
+    # Filters
     st.sidebar.header("Filters")
     tech_filter = st.sidebar.multiselect("Select Tech(s)", options=sorted(df['Tech'].unique()), default=sorted(df['Tech'].unique()))
     month_filter = st.sidebar.multiselect("Select Month(s)", options=sorted(df['Month'].unique()), default=sorted(df['Month'].unique()))
 
-    # Apply filters
     filtered_df = df[
         (df['Tech'].isin(tech_filter)) &
         (df['Month'].isin(month_filter))
